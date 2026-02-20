@@ -1,0 +1,131 @@
+/* --- Grid de gráficos de indicadores --- */
+.indicadores-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: flex-start;
+  margin-top: 1.5rem;
+}
+
+/* Card Individual de Indicador */
+.chart-indicador-block {
+  flex: 1 1 calc(25% - 20px); /* Tenta manter 4 por linha */
+  min-width: 280px;
+  max-width: 100%;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease;
+}
+
+.chart-indicador-block:hover {
+  border-color: #38bdf8;
+  background: rgba(30, 41, 59, 0.6);
+}
+
+/* --- Dashboard Estrutura Principal --- */
+.dashboard {
+  min-height: 100vh;
+  background: linear-gradient(160deg, #0f172a 0%, #020617 50%, #0c1222 100%);
+  color: #f8fafc;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+.dashboard-header h1 {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: #38bdf8;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-header .subtitle {
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+
+/* --- Filtros e Controles --- */
+.dashboard-header .filters {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.dashboard-header .filters select {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+/* --- Tabela Heatmap (Matriz de Desempenho) --- */
+.heatmap-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #334155;
+}
+
+.heatmap {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.heatmap th, .heatmap td {
+  padding: 0.75rem;
+  text-align: center;
+  border: 1px solid #1e293b;
+}
+
+.heatmap-empresa {
+  text-align: left !important;
+  position: sticky;
+  left: 0;
+  background: #1e293b;
+  z-index: 2;
+  font-weight: 600;
+}
+
+.heatmap-cell.heatmap-ok { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+.heatmap-cell.heatmap-fail { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+/* --- Progress Bars e Metas --- */
+.progress-track {
+  height: 12px;
+  background: #1e293b;
+  border-radius: 20px;
+  margin: 8px 0;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 20px;
+  background: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+/* --- Responsividade --- */
+@media (max-width: 1200px) {
+  .chart-indicador-block {
+    flex: 1 1 calc(50% - 20px);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard { padding: 1rem; }
+  .chart-indicador-block {
+    flex: 1 1 100%;
+  }
+  .dashboard-header h1 { font-size: 1.75rem; }
+}
