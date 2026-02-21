@@ -23,10 +23,12 @@ import {
   ComposedChart,
 } from 'recharts';
 
-const API_URL = import.meta.env.MODE === 'production'
+// Substitua pelo seu link real do Render
+const BASE_URL = import.meta.env.MODE === 'production'
   ? 'https://tecsaude-api.onrender.com'
   : 'http://127.0.0.1:3001';
-const API_BASE = `${API_URL}/indicadores`;
+
+const API_BASE = `${BASE_URL}/indicadores`;
 const ANOS = [2024, 2025, 2026];
 const EMPRESAS_IDS = [
   157, 245, 241, 153, 232, 88, 128, 252, 223, 177, 247, 175, 14, 220, 186, 197,
@@ -105,9 +107,7 @@ function App() {
     const ids = empresaFiltro ? [empresaFiltro] : EMPRESAS_IDS;
 
     const fetchOne = (id) =>
-      fetch(
-        `${API_BASE}?data_consolidacao_inicio=${inicio}&data_consolidacao_fim=${fim}&empresa_id=${id}`
-      )
+      fetch(`${BASE_URL}/indicadores?data_consolidacao_inicio=${inicio}&data_consolidacao_fim=${fim}&empresa_id=${id}`)
         .then((r) => r.json())
         .then((res) => {
           const list = Array.isArray(res) ? res : res?.data ?? [];
