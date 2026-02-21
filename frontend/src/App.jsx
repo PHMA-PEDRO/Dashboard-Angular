@@ -2,8 +2,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { io } from 'socket.io-client';
 
-// Substitua o localhost pelo link que você copiou do Render
-const socket = io('https://tecsaude-api.onrender.com', {
+const BASE_URL = import.meta.env.MODE === 'production'
+  ? 'https://tecsaude-api.onrender.com'
+  : 'http://127.0.0.1:3001';
+
+const socket = io(BASE_URL, {
   transports: ['polling', 'websocket']
 });
 
@@ -22,11 +25,6 @@ import {
   Cell,
   ComposedChart,
 } from 'recharts';
-
-// Substitua pelo seu link real do Render
-const BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://tecsaude-api.onrender.com'
-  : 'http://127.0.0.1:3001';
 
 const API_BASE = `${BASE_URL}/indicadores`;
 const ANOS = [2024, 2025, 2026];
@@ -132,6 +130,26 @@ function App() {
       setLoading(false);
     });
   }, [ano, empresaFiltro]);
+
+  // Sincronização em tempo real via socket
+  useEffect(() => {
+    socket.on('data_update', (results) => {
+      if (!empresaFiltro) {
+        setData((currentData) => {
+          let nextData = [...currentData];
+          results.forEach(res => {
+            if (!res.error) {
+              // Remove dados antigos daquela empresa e insere os novos
+              nextData = nextData.filter(row => row._empresa_id !== res.id);
+              nextData.push(...(res.data || []).map(row => ({ ...row, _empresa_id: res.id })));
+            }
+          });
+          return nextData;
+        });
+      }
+    });
+    return () => socket.off('data_update');
+  }, [empresaFiltro]);
 
   const dataDoAno = useMemo(() => {
     const prefix = String(ano);

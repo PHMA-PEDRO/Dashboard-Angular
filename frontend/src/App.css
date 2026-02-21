@@ -1,11 +1,17 @@
 /* --- Grid de gráficos de indicadores --- */
 .indicadores-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 20px;
-  justify-content: flex-start;
   margin-top: 1.5rem;
 }
+
+@media (min-width: 1024px) {
+  .indicadores-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 
 /* Card Individual de Indicador */
 .chart-indicador-block {
@@ -70,8 +76,24 @@
 /* --- Tabela Heatmap (Matriz de Desempenho) --- */
 .heatmap-wrap {
   overflow-x: auto;
-  border-radius: 12px;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 1rem;
+  border-radius: 8px;
+  background: #1e293b;
   border: 1px solid #334155;
+.cards-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+.card-resumo {
+  flex: 1 1 150px;
+  background: #1e293b;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+}
 }
 
 .heatmap {
