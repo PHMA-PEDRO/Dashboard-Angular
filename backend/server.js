@@ -10,8 +10,16 @@ const BATCH_SIZE = 3;
 // Inicializa o Socket.io vinculado ao servidor do Fastify
 const io = require('socket.io')(fastify.server, {
     cors: {
-        origin: ["https://dashboard-angular-nine.vercel.app", "http://localhost:5173"],
-        methods: ["GET", "POST"]
+        origin: [
+            "https://dashboard-angular-nine.vercel.app",
+            "https://tecsaude-dashboard-frontend.vercel.app",
+            "https://tecsaude-dashboard.vercel.app",
+            "https://tecsaude-dashboard.onrender.com",
+            "http://localhost:5173"
+        ],
+        methods: ["GET", "POST"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        credentials: true
     }
 });
 
@@ -79,8 +87,16 @@ const registerRoutes = () => {
 async function start() {
     // 1. CORS deve vir ANTES das rotas
     await fastify.register(require('@fastify/cors'), {
-        origin: ["https://dashboard-angular-nine.vercel.app", "http://localhost:5173"],
-        methods: ["GET", "POST"]
+        origin: [
+            "https://dashboard-angular-nine.vercel.app",
+            "https://tecsaude-dashboard-frontend.vercel.app",
+            "https://tecsaude-dashboard.vercel.app",
+            "https://tecsaude-dashboard.onrender.com",
+            "http://localhost:5173"
+        ],
+        methods: ["GET", "POST"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        credentials: true
     });
 
     registerRoutes();
