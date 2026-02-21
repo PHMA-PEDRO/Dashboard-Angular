@@ -23,7 +23,10 @@ import {
   ComposedChart,
 } from 'recharts';
 
-const API_BASE = 'http://127.0.0.1:3001/indicadores';
+const API_URL = import.meta.env.MODE === 'production'
+  ? 'https://tecsaude-api.onrender.com'
+  : 'http://127.0.0.1:3001';
+const API_BASE = `${API_URL}/indicadores`;
 const ANOS = [2024, 2025, 2026];
 const EMPRESAS_IDS = [
   157, 245, 241, 153, 232, 88, 128, 252, 223, 177, 247, 175, 14, 220, 186, 197,
