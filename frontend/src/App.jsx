@@ -1,4 +1,11 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
+import { io } from 'socket.io-client';
+
+// Substitua o localhost pelo link que você copiou do Render
+const socket = io('https://tecsaude-api.onrender.com', {
+  transports: ['polling', 'websocket']
+});
 
 import {
   ResponsiveContainer,
