@@ -17,10 +17,66 @@ if (!API_KEY) {
 
 // --- Base de Dados Interna ---
 const EMPRESAS = [
-  157, 241, 153, 232, 88, 128, 252, 223, 177, 247, 175, 14, 220, 186, 197, 196, 
-  188, 198, 200, 199, 244, 133, 25, 217, 60, 20, 143, 249, 17, 256, 236, 181, 
-  209, 172, 259, 260, 179, 127, 38, 215, 95, 18, 70, 69, 160, 161, 242, 100, 
-  8, 139, 158, 183, 159, 11, 115, 254, 180, 113, 168, 105
+  { id: 157, nome: 'MEDRADIUS' },
+  { id: 241, nome: 'HOSPITAL UNIVERSITÁRIO PROFESSOR ALBERTO ANTUNES – HUPAA' },
+  { id: 153, nome: 'OZN HEALTH SPE S.A. (HOSPITAL DELPHINA RINALDI)' },
+  { id: 232, nome: 'UPA CAMPOS SALLES' },
+  { id: 88, nome: 'HOSPITAL ARISTIDES MALTEZ' },
+  { id: 128, nome: 'CENTRO MÉDICO HOSPITALAR AGENOR PAIVA' },
+  { id: 252, nome: 'HOEB - HOSPITAL ORTOPÉDICO DO ESTADO DA BAHIA' },
+  { id: 223, nome: 'HOSPITAL DAS CLÍNICAS DE ALAGOINHAS' },
+  { id: 177, nome: 'POLICLÍNICA PASSARÉ E POLICLÍNICA BONSUCESSO' },
+  { id: 247, nome: 'SUPORTE NUTRICIONAL E QUIMIOTERAPIA LTDA' },
+  { id: 175, nome: 'HOSPITAL GERAL DE FORTALEZA-HGF' },
+  { id: 14, nome: 'UNIMED FORTALEZA' },
+  { id: 220, nome: 'HOME- HOSPITAL ORTOPÉDICO E MEDICINA ESPECIALIZADA LTDA' },
+  { id: 186, nome: 'EBEM - FAG DE OLIVEIRA EPP' },
+  { id: 197, nome: 'FUNDAÇÃO ALTINO VENTURA' },
+  { id: 196, nome: 'GRUPO SANTA MARTA' },
+  { id: 188, nome: 'HOSPITAL AGAMENON MAGALHÃES' },
+  { id: 198, nome: 'HOSPITAL DA AERONÁUTICA DO RECIFE' },
+  { id: 200, nome: 'HOSPITAL UNIVERSITÁRIO DE BRASÍLIA' },
+  { id: 199, nome: 'IMAGENS MÉDICAS BRASÍLIA' },
+  { id: 244, nome: 'HOSPITAL DE PLÁSTICA' },
+  { id: 133, nome: 'HOSPITAL SÃO JOSÉ - COLATINA' },
+  { id: 25, nome: 'VITÓRIA APART HOSPITAL' },
+  { id: 217, nome: 'SANTA CASA DE MISERICÓRDIA DE COLATINA' },
+  { id: 60, nome: 'UNIMED NOROESTE CAPIXABA' },
+  { id: 20, nome: 'UNIMED VITÓRIA' },
+  { id: 143, nome: 'CENTRAL COMPARTILHADA DE OPERAÇÕES' },
+  { id: 249, nome: 'CENTRAL COMPARTILHADA DE OPERAÇÕES - SP' },
+  { id: 17, nome: 'TECSAÚDE' },
+  { id: 256, nome: 'HOSPITAL ESTADUAL DE URGÊNCIAS DE GOIÁS DR. VALDEMIRO CRUZ' },
+  { id: 236, nome: 'HOSPITAL MUNICIPAL DE APARECIDA DE GOIÂNIA' },
+  { id: 181, nome: 'HOSPITAL MARANHENSE' },
+  { id: 209, nome: 'HOSPITAL SANTA MÔNICA DE IMPERATRIZ' },
+  { id: 172, nome: 'UNIMED IMPERATRIZ DO MARANHÃO' },
+  { id: 259, nome: 'HOSPITAL DAS CLINICAS - UFTM' },
+  { id: 260, nome: 'GESTÃO DA QUALIDADE  -  DTQ' },
+  { id: 179, nome: 'COMPLEXO HOSPITALAR UNIVERSITARIO DA UFPA' },
+  { id: 127, nome: 'DIAGNOSIS CENTRO DE DIAGNOSTICOS LTDA - HSM' },
+  { id: 38, nome: 'HOSPITAL REGIONAL PUBLICO DO MARAJÓ' },
+  { id: 215, nome: 'HOSPITAL REGIONAL PÚBLICO DOS CAETÉS' },
+  { id: 95, nome: 'UNIMED JOÃO PESSOA COOPERATIVA DE TRABALHO MÉDICO' },
+  { id: 18, nome: 'IMIP - INSTITUTO DE MEDICINA INTEGRAL PROF. FERNANDO FIGUEIRA' },
+  { id: 70, nome: 'UPAE' },
+  { id: 69, nome: 'UPAE GARANHUNS' },
+  { id: 160, nome: 'HOSPITAL DE CÂNCER DE PERNAMBUCO' },
+  { id: 161, nome: 'HOSPITAL MED IMAGEM' },
+  { id: 242, nome: 'TECSAÚDE LOCAÇÃO' },
+  { id: 100, nome: 'HCP GESTÃO' },
+  { id: 8, nome: 'HEMOPE' },
+  { id: 139, nome: 'HOSPITAL DA RESTAURAÇÃO GOV. PAULO GUERRA' },
+  { id: 158, nome: 'HOSPITAL UNIVERSITÁRIO OSWALDO CRUZ' },
+  { id: 183, nome: 'SANTA CASA DE MISERICORDIA DO RECIFE' },
+  { id: 159, nome: 'HOSPITAL GERAL MATERNO INFANTIL - UNIMED RECIFE' },
+  { id: 11, nome: 'HOSPITAL UNIMED RECIFE' },
+  { id: 115, nome: 'HOSPITAL DAS CLÍNICAS DE TERESÓPOLIS COSTANTINO OTTAVIANO' },
+  { id: 254, nome: 'HOSPITAL DO CORACAO DE NATAL' },
+  { id: 180, nome: 'HOSPITAL MILITAR DE ÁREA DE SÃO PAULO' },
+  { id: 113, nome: 'INSTITUIÇÃO PAULISTA ADVENTISTA DE EDUCAÇÃO E ASSISTÊNCIA SOCIAL' },
+  { id: 168, nome: 'PET CARE' },
+  { id: 105, nome: 'UPA\'S SÃO PAULO' }
 ];
 
 // --- Cache e API ---
@@ -50,9 +106,9 @@ async function start() {
 
   // 2. Rota de Listagem de Empresas (Útil para o seu Frontend montar Selects/filtros)
   fastify.get('/empresas', async () => {
-    return { 
-      total: EMPRESAS.length, 
-      ids: EMPRESAS 
+    return {
+      total: EMPRESAS.length,
+      empresas: EMPRESAS
     };
   });
 
@@ -64,7 +120,8 @@ async function start() {
     
     // Validação: A empresa solicitada está na nossa lista autorizada?
     // (O 132 é o seu padrão, então permitimos ele também)
-    if (!EMPRESAS.includes(idParaConsulta) && idParaConsulta !== 132) {
+    const empresaIds = EMPRESAS.map(e => e.id);
+    if (!empresaIds.includes(idParaConsulta) && idParaConsulta !== 132) {
       return reply.code(403).send({ 
         error: 'Acesso negado', 
         message: `A empresa ${idParaConsulta} não está na lista permitida.` 
