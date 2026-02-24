@@ -15,6 +15,8 @@ import {
   ComposedChart,
 } from 'recharts';
 
+
+
 const BASE_URL = import.meta.env.MODE === 'production'
   ? 'https://tecsaude-api.onrender.com'
   : 'http://127.0.0.1:3001';
@@ -68,26 +70,27 @@ function isResponseType(indicador) {
 
 const BATCH_SIZE = 100;
 
+
 function App() {
   const [indicadorFiltro, setIndicadorFiltro] = useState('');
-  const [ano, setAno] = useState(2024);
+  const [ano, setAno] = useState(2026);
   const [empresaFiltro, setEmpresaFiltro] = useState('');
-  
-  // Novo estado para a lista dinâmica de empresas
   const [listaEmpresas, setListaEmpresas] = useState([]);
-  
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [empresaClicadaRanking, setEmpresaClicadaRanking] = useState(null);
+  const [projetosConsolidados, setProjetosConsolidados] = useState([]);
+  const [projetosNaoConsolidados, setProjetosNaoConsolidados] = useState([]);
+  const [projetoSelecionado, setProjetoSelecionado] = useState('');
 
   // 1. Efeito para buscar as empresas permitidas na inicialização
   useEffect(() => {
     fetch(`${BASE_URL}/empresas`)
       .then(res => res.json())
       .then(result => {
-        if (result && result.ids) {
-          setListaEmpresas(result.ids);
+        if (result && result.empresas) {
+          setListaEmpresas(result.empresas);
         }
       })
       .catch(err => {
@@ -99,16 +102,16 @@ function App() {
 
   // 2. Efeito principal para buscar os indicadores
   useEffect(() => {
-    // Aguarda a lista de empresas carregar antes de rodar os batches
-    if (listaEmpresas.length === 0 && !error) return; 
+    if (listaEmpresas.length === 0 && !error) return;
 
     setLoading(true);
     setError(null);
     const inicio = `${ano}-01-01T00:00`;
     const fim = `${ano}-12-31T23:59:59`;
 
-    // Usa o filtro selecionado OU a lista dinâmica vinda do backend
-    const ids = empresaFiltro ? [empresaFiltro] : listaEmpresas;
+    const ids = empresaFiltro
+      ? [empresaFiltro]
+      : listaEmpresas.map(e => e.id);
 
     const fetchOne = (id) => {
       const url = `${BASE_URL}/indicadores?data_consolidacao_inicio=${inicio}&data_consolidacao_fim=${fim}&empresa_id=${id}`;
@@ -141,7 +144,33 @@ function App() {
       setData([]);
       setLoading(false);
     });
-  }, [ano, empresaFiltro, listaEmpresas]); // Adicionado listaEmpresas como dependência
+  }, [ano, empresaFiltro, listaEmpresas]);
+
+  // 3. Efeito para calcular projetos consolidados e não consolidados
+  // Empresas sem dados no mês selecionado
+  useEffect(() => {
+    // Seleciona o mês atual (primeiro mês do ano, ex: janeiro)
+    const mesSelecionado = `${ano}-01`;
+    // Empresas presentes nos dados do mês
+    const empresasComDados = new Set();
+    data.forEach((row) => {
+      const mes = normalizeMes(getCol(row, 'MÊS', 'MES'));
+      if (mes && mes.startsWith(mesSelecionado)) {
+        const empresaId = getCol(row, 'EMPRESA') ?? row._empresa_id;
+        if (empresaId) empresasComDados.add(String(empresaId));
+      }
+    });
+    // Empresas sem dados
+    const empresasSemDados = listaEmpresas
+      .filter(e => !empresasComDados.has(String(e.id)))
+      .map(e => e.nome);
+    setProjetosNaoConsolidados(empresasSemDados);
+    setProjetosConsolidados([]); // Não usado, mas mantido para compatibilidade
+  }, [data, ano, listaEmpresas]);
+
+  // Totais para o gráfico
+  const totalConsolidado = projetosConsolidados.length;
+  const totalNaoConsolidado = projetosNaoConsolidados.length;
 
   const dataDoAno = useMemo(() => {
     const prefix = String(ano);
@@ -387,9 +416,9 @@ function App() {
                 }}
               >
                 <option value="">Todas</option>
-                {/* Aqui agora usamos a lista dinâmica carregada da API */}
-                {listaEmpresas.map((id) => (
-                  <option key={id} value={String(id)}>{id}</option>
+                {/* Exibe nome da empresa no select */}
+                {listaEmpresas.map((empresa) => (
+                  <option key={empresa.id} value={String(empresa.id)}>{empresa.nome}</option>
                 ))}
               </select>
             </label>
@@ -509,6 +538,9 @@ function App() {
               ))}
             </div>
           </section>
+
+
+          {/* ...card removido conforme solicitado... */}
 
           <section className="block">
             <h2 className="block-title">Matriz de desempenho (verde = bateu a meta no mês, vermelho = não bateu)</h2>
