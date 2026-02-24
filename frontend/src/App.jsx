@@ -1,15 +1,4 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
-import { io } from 'socket.io-client';
-
-const BASE_URL = import.meta.env.MODE === 'production'
-  ? 'https://tecsaude-api.onrender.com'
-  : 'http://127.0.0.1:3001';
-
-const socket = io(BASE_URL, {
-  transports: ['polling', 'websocket']
-});
-
 import {
   ResponsiveContainer,
   LineChart,
@@ -26,18 +15,14 @@ import {
   ComposedChart,
 } from 'recharts';
 
-const API_BASE = `${BASE_URL}/indicadores`;
-const ANOS = [2024, 2025, 2026];
-const EMPRESAS_IDS = [
-  157, 245, 241, 153, 232, 88, 128, 252, 223, 177, 247, 175, 14, 220, 186, 197,
-  196, 188, 198, 200, 199, 244, 132, 133, 25, 217, 60, 20, 143, 249, 49, 17, 12,
-  256, 236, 181, 209, 172, 259, 179, 127, 38, 215, 95, 18, 70, 69, 10, 160, 161,
-  242, 167, 100, 8, 139, 158, 183, 159, 11, 115, 254, 180, 113, 168, 105, 239,
-  62, 251, 238, 91, 237, 258, 243, 255, 240,
-];
+const BASE_URL = import.meta.env.MODE === 'production'
+  ? 'https://tecsaude-api.onrender.com'
+  : 'http://127.0.0.1:3001';
 
+const ANOS = [2024, 2025, 2026];
 const MESES_LABEL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
+// Funções utilitárias mantidas intactas
 function normalizeMes(v) {
   if (!v) return '';
   const s = String(v).trim();
@@ -69,49 +54,76 @@ function getCol(row, ...candidates) {
   return undefined;
 }
 
-/** Tipo de gráfico por indicador: velocidade (maior melhor), resposta (menor melhor), proporção (eixo duplo) */
 function getChartType(indicador) {
   const s = String(indicador || '').toUpperCase();
-  if (s.includes('10') || s.includes('2')) return 'proporcao';  // Rondas (10), MC Internas (2)
-  if (s.includes('7') || s.includes('8') || s.includes('4') || s.includes('6')) return 'resposta'; // Tempos (7,8), Pendências (4,6)
-  if (s.includes('1.1') || s.includes('5') || s.includes('3')) return 'velocidade';   // Produtividade (1.1), Conclusão (5), MC Concluídas (3)
+  if (s.includes('10') || s.includes('2')) return 'proporcao';  
+  if (s.includes('7') || s.includes('8') || s.includes('4') || s.includes('6')) return 'resposta'; 
+  if (s.includes('1.1') || s.includes('5') || s.includes('3')) return 'velocidade';   
   return 'velocidade';
 }
 
-/** Para resposta: sucesso = COEFC abaixo da meta. Para velocidade: acima da meta. */
 function isResponseType(indicador) {
-  const t = getChartType(indicador);
-  return t === 'resposta';
+  return getChartType(indicador) === 'resposta';
 }
 
-const BATCH_SIZE = 8;
+const BATCH_SIZE = 100;
 
 function App() {
-    // Filtro por indicador para matriz de desempenho
-    const [indicadorFiltro, setIndicadorFiltro] = useState('');
+  const [indicadorFiltro, setIndicadorFiltro] = useState('');
   const [ano, setAno] = useState(2024);
   const [empresaFiltro, setEmpresaFiltro] = useState('');
+  
+  // Novo estado para a lista dinâmica de empresas
+  const [listaEmpresas, setListaEmpresas] = useState([]);
+  
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [empresaClicadaRanking, setEmpresaClicadaRanking] = useState(null);
 
+  // 1. Efeito para buscar as empresas permitidas na inicialização
   useEffect(() => {
+    fetch(`${BASE_URL}/empresas`)
+      .then(res => res.json())
+      .then(result => {
+        if (result && result.ids) {
+          setListaEmpresas(result.ids);
+        }
+      })
+      .catch(err => {
+        console.error('Erro ao carregar lista de empresas:', err);
+        setError('Falha ao conectar com o servidor para buscar as empresas.');
+        setLoading(false);
+      });
+  }, []);
+
+  // 2. Efeito principal para buscar os indicadores
+  useEffect(() => {
+    // Aguarda a lista de empresas carregar antes de rodar os batches
+    if (listaEmpresas.length === 0 && !error) return; 
+
     setLoading(true);
     setError(null);
     const inicio = `${ano}-01-01T00:00`;
     const fim = `${ano}-12-31T23:59:59`;
 
-    const ids = empresaFiltro ? [empresaFiltro] : EMPRESAS_IDS;
+    // Usa o filtro selecionado OU a lista dinâmica vinda do backend
+    const ids = empresaFiltro ? [empresaFiltro] : listaEmpresas;
 
-    const fetchOne = (id) =>
-      fetch(`${BASE_URL}/indicadores?data_consolidacao_inicio=${inicio}&data_consolidacao_fim=${fim}&empresa_id=${id}`)
+    const fetchOne = (id) => {
+      const url = `${BASE_URL}/indicadores?data_consolidacao_inicio=${inicio}&data_consolidacao_fim=${fim}&empresa_id=${id}`;
+      const isLocal = import.meta.env.MODE !== 'production';
+      const fetchOptions = isLocal
+        ? { headers: { 'x-api-key': 'da04510d-5822-4404-aebd-7adc197d3f42' } }
+        : {};
+      return fetch(url, fetchOptions)
         .then((r) => r.json())
         .then((res) => {
           const list = Array.isArray(res) ? res : res?.data ?? [];
           return list.map((row) => ({ ...row, _empresa_id: id }));
         })
-        .catch(() => []);
+        .catch(() => []); // Falhas individuais não quebram o fluxo
+    };
 
     const runBatches = async () => {
       const all = [];
@@ -129,27 +141,7 @@ function App() {
       setData([]);
       setLoading(false);
     });
-  }, [ano, empresaFiltro]);
-
-  // Sincronização em tempo real via socket
-  useEffect(() => {
-    socket.on('data_update', (results) => {
-      if (!empresaFiltro) {
-        setData((currentData) => {
-          let nextData = [...currentData];
-          results.forEach(res => {
-            if (!res.error) {
-              // Remove dados antigos daquela empresa e insere os novos
-              nextData = nextData.filter(row => row._empresa_id !== res.id);
-              nextData.push(...(res.data || []).map(row => ({ ...row, _empresa_id: res.id })));
-            }
-          });
-          return nextData;
-        });
-      }
-    });
-    return () => socket.off('data_update');
-  }, [empresaFiltro]);
+  }, [ano, empresaFiltro, listaEmpresas]); // Adicionado listaEmpresas como dependência
 
   const dataDoAno = useMemo(() => {
     const prefix = String(ano);
@@ -260,7 +252,6 @@ function App() {
     [ano]
   );
 
-  /** Indicadores únicos no ano (coluna INDICADOR) */
   const indicadoresUnicos = useMemo(() => {
     const set = new Set();
     dataDoAno.forEach((r) => {
@@ -270,7 +261,6 @@ function App() {
     return [...set].sort();
   }, [dataDoAno]);
 
-  // Lista de indicadores a exibir nos gráficos
   const INDICADORES_DESEJADOS = [
     'OPER 1.1 - PRODUTIVIDADE',
     'OPER 2 - % DE MC CONCLUÍDA INTERNAMENTE',
@@ -282,7 +272,7 @@ function App() {
     'OPER 8 - TEMPO MÉDIO DE ATENDIMENTO',
     'OPER 10 - % CONCLUSÃO DE RONDAS PLANEJADAS',
   ];
-  /** Por indicador: série mensal (mes, coefc, meta, denominador) e status do ano (bateu meta?) */
+
   const graficosPorIndicador = useMemo(() => {
     const mesesOrd = Array.from({ length: 12 }, (_, i) => `${ano}-${String(i + 1).padStart(2, '0')}`);
     const byIndMes = {};
@@ -292,7 +282,7 @@ function App() {
       if (!ind || !mes || !mes.startsWith(String(ano))) return;
       const coefc = getVal(r, 'COEFC.') || getVal(r, 'COEFC');
       const meta = getVal(r, 'META');
-      // Corrigir denominador para OPER 2, 3 e 10
+      
       let den = getVal(r, 'DENOMINADOR');
       if (ind && (
         ind.toUpperCase().includes('OPER 2') ||
@@ -309,9 +299,7 @@ function App() {
       byIndMes[ind][mes].n += 1;
     });
 
-    // Filtrar apenas os indicadores desejados
     return INDICADORES_DESEJADOS.map((nome) => {
-      // Procurar indicador correspondente (case insensitive, contém)
       const ind = indicadoresUnicos.find((i) => i.toUpperCase().includes(nome.split(' - ')[0].replace('OPER','').trim().toUpperCase()));
       if (!ind) return null;
       const serie = mesesOrd.map((mes) => {
@@ -349,7 +337,7 @@ function App() {
           <h1>Dashboard Indicadores</h1>
           <p className="subtitle">Carregando...</p>
         </header>
-        <div className="loading">Carregando dados do ano {ano}...</div>
+        <div className="loading">Carregando dados...</div>
       </div>
     );
   }
@@ -367,61 +355,62 @@ function App() {
 
   return (
     <div className="dashboard">
-      {/* 1. Cabeçalho de Controle */}
-      <header className="dashboard-header header-controls">
+      <header className="dashboard-header header-controls organic-header">
         <h1>Dashboard Indicadores</h1>
         <p className="subtitle">Ranking, tendência e matriz de desempenho por ano</p>
-        <div className="filters">
-          <label>
-            <span>Ano</span>
-            <select value={ano} onChange={(e) => setAno(Number(e.target.value))}>
-              {ANOS.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </label>
-          {/* Filtro por indicador para matriz de desempenho */}
-          <label>
-            <span>Indicador (matriz)</span>
-            <select value={indicadorFiltro || ''} onChange={e => setIndicadorFiltro(e.target.value)}>
-              <option value="">Todos</option>
-              {indicadoresUnicos.map(ind => (
-                <option key={ind} value={ind}>{ind}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Empresa (opcional)</span>
-            <select
-              value={empresaFiltro}
-              onChange={(e) => {
-                setEmpresaFiltro(e.target.value);
-                setEmpresaClicadaRanking(null);
-              }}
-            >
-              <option value="">Todas</option>
-              {EMPRESAS_IDS.map((id) => (
-                <option key={id} value={String(id)}>{id}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="cards-resumo">
-          <div className="card-resumo">
-            <span className="card-resumo-label">Média COEFC. (ano)</span>
-            <span className="card-resumo-value">{cards.mediaCoefc.toFixed(2)}</span>
+        <div className="organic-filters-cards">
+          <div className="organic-filters">
+            <label>
+              <span>Ano</span>
+              <select value={ano} onChange={(e) => setAno(Number(e.target.value))}>
+                {ANOS.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Indicador (matriz)</span>
+              <select value={indicadorFiltro || ''} onChange={e => setIndicadorFiltro(e.target.value)}>
+                <option value="">Todos</option>
+                {indicadoresUnicos.map(ind => (
+                  <option key={ind} value={ind}>{ind}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Empresa (opcional)</span>
+              <select
+                value={empresaFiltro}
+                onChange={(e) => {
+                  setEmpresaFiltro(e.target.value);
+                  setEmpresaClicadaRanking(null);
+                }}
+              >
+                <option value="">Todas</option>
+                {/* Aqui agora usamos a lista dinâmica carregada da API */}
+                {listaEmpresas.map((id) => (
+                  <option key={id} value={String(id)}>{id}</option>
+                ))}
+              </select>
+            </label>
           </div>
-          <div className="card-resumo">
-            <span className="card-resumo-label">Média META (ano)</span>
-            <span className="card-resumo-value">{cards.mediaMeta.toFixed(2)}</span>
-          </div>
-          <div className="card-resumo">
-            <span className="card-resumo-label">% Atingimento global</span>
-            <span className="card-resumo-value">{cards.pctGlobal.toFixed(1)}%</span>
-          </div>
-          <div className="card-resumo">
-            <span className="card-resumo-label">Empresas acima da meta</span>
-            <span className="card-resumo-value">{cards.acimaMeta} / {cards.totalEmpresas}</span>
+          <div className="organic-cards-resumo">
+            <div className="organic-card-resumo">
+              <span className="organic-card-resumo-label">Média COEFC. (ano)</span>
+              <span className="organic-card-resumo-value">{cards.mediaCoefc.toFixed(2)}</span>
+            </div>
+            <div className="organic-card-resumo">
+              <span className="organic-card-resumo-label">Média META (ano)</span>
+              <span className="organic-card-resumo-value">{cards.mediaMeta.toFixed(2)}</span>
+            </div>
+            <div className="organic-card-resumo">
+              <span className="organic-card-resumo-label">% Atingimento global</span>
+              <span className="organic-card-resumo-value">{cards.pctGlobal.toFixed(1)}%</span>
+            </div>
+            <div className="organic-card-resumo">
+              <span className="organic-card-resumo-label">Empresas acima da meta</span>
+              <span className="organic-card-resumo-value">{cards.acimaMeta} / {cards.totalEmpresas}</span>
+            </div>
           </div>
         </div>
       </header>
@@ -430,7 +419,6 @@ function App() {
         <div className="empty">Nenhum dado para o ano {ano}.</div>
       ) : (
         <>
-          {/* 2. Ranking Empresa vs Empresa */}
           <section className="block">
             <h2 className="block-title">Ranking por % de atingimento da meta (média COEFC. / média META)</h2>
             <p className="block-hint">Clique em uma barra para destacar a tendência mensal dessa empresa. Verde = ≥100%, Vermelho = &lt;100%.</p>
@@ -463,8 +451,6 @@ function App() {
             )}
           </section>
 
-
-          {/* 5. Gráficos por tipo de indicador (Velocidade, Resposta, Proporção) */}
           <section className="block">
             <div className="indicadores-grid">
               {graficosPorIndicador.map(({ indicador, serie, mediaMeta, mediaCoefc, bateuMetaAno, tipo }) => (
@@ -524,7 +510,6 @@ function App() {
             </div>
           </section>
 
-          {/* 4. Matriz de Desempenho (Heatmap) */}
           <section className="block">
             <h2 className="block-title">Matriz de desempenho (verde = bateu a meta no mês, vermelho = não bateu)</h2>
             <div className="heatmap-wrap">
@@ -543,10 +528,8 @@ function App() {
                     <tr key={emp}>
                       <td className="heatmap-empresa">{emp}</td>
                       {heatmapMeses.map((mes) => {
-                        // Filtro por indicador
                         let cell = byCompanyMonth[emp]?.[mes];
                         if (indicadorFiltro) {
-                          // Filtra apenas dados do indicador selecionado
                           cell = null;
                           for (const r of dataDoAno) {
                             const ind = getCol(r, 'INDICADOR');
