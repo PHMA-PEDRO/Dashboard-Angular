@@ -23,6 +23,20 @@ const BASE_URL = import.meta.env.MODE === 'production'
 
 const ANOS = [2024, 2025, 2026];
 const MESES_LABEL = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const MESES = [
+  { value: '01', label: 'Jan' },
+  { value: '02', label: 'Fev' },
+  { value: '03', label: 'Mar' },
+  { value: '04', label: 'Abr' },
+  { value: '05', label: 'Mai' },
+  { value: '06', label: 'Jun' },
+  { value: '07', label: 'Jul' },
+  { value: '08', label: 'Ago' },
+  { value: '09', label: 'Set' },
+  { value: '10', label: 'Out' },
+  { value: '11', label: 'Nov' },
+  { value: '12', label: 'Dez' },
+];
 
 // Funções utilitárias mantidas intactas
 function normalizeMes(v) {
@@ -74,8 +88,10 @@ const BATCH_SIZE = 100;
 function App() {
   const [indicadorFiltro, setIndicadorFiltro] = useState('');
   const [ano, setAno] = useState(2026);
+  const [mes, setMes] = useState('01');
   const [empresaFiltro, setEmpresaFiltro] = useState('');
   const [responsavelFiltro, setResponsavelFiltro] = useState('');
+  const [carteiraFiltro, setCarteiraFiltro] = useState('');
   const [listaEmpresas, setListaEmpresas] = useState([]);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,11 +126,26 @@ function App() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [listaEmpresas]);
 
-  // Empresas filtradas pelo responsável
+  // Lista única de carteiras
+  const listaCarteiras = useMemo(() => {
+    const set = new Set();
+    listaEmpresas.forEach(e => {
+      if (e.carteira) set.add(e.carteira);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listaEmpresas]);
+
+  // Empresas filtradas por responsável e carteira
   const empresasFiltradas = useMemo(() => {
-    if (!responsavelFiltro) return listaEmpresas;
-    return listaEmpresas.filter(e => e.responsavel === responsavelFiltro);
-  }, [listaEmpresas, responsavelFiltro]);
+    let result = listaEmpresas;
+    if (responsavelFiltro) {
+      result = result.filter(e => e.responsavel === responsavelFiltro);
+    }
+    if (carteiraFiltro) {
+      result = result.filter(e => e.carteira === carteiraFiltro);
+    }
+    return result;
+  }, [listaEmpresas, responsavelFiltro, carteiraFiltro]);
 
   // 2. Efeito principal para buscar os indicadores
   useEffect(() => {
@@ -165,24 +196,30 @@ function App() {
   // 3. Efeito para calcular projetos consolidados e não consolidados
   // Empresas sem dados no mês selecionado
   useEffect(() => {
-    // Seleciona o mês atual (primeiro mês do ano, ex: janeiro)
-    const mesSelecionado = `${ano}-01`;
+    // Seleciona o mês escolhido
+    const mesSelecionado = `${ano}-${mes}`;
     // Empresas presentes nos dados do mês
     const empresasComDados = new Set();
     data.forEach((row) => {
-      const mes = normalizeMes(getCol(row, 'MÊS', 'MES'));
-      if (mes && mes.startsWith(mesSelecionado)) {
+      const mesRow = normalizeMes(getCol(row, 'MÊS', 'MES'));
+      if (mesRow && mesRow.startsWith(mesSelecionado)) {
+        // Pode vir como id, nome ou ambos
         const empresaId = getCol(row, 'EMPRESA') ?? row._empresa_id;
+        const empresaNome = typeof empresaId === 'string' && isNaN(Number(empresaId)) ? empresaId : undefined;
         if (empresaId) empresasComDados.add(String(empresaId));
+        if (empresaNome) empresasComDados.add(empresaNome.trim().toUpperCase());
       }
     });
-    // Empresas sem dados
-    const empresasSemDados = listaEmpresas
-      .filter(e => !empresasComDados.has(String(e.id)))
-      .map(e => e.nome);
+    // Empresas sem dados: verifica por id e por nome
+    const empresasSemDados = listaEmpresas.filter(e => {
+      return (
+        !empresasComDados.has(String(e.id)) &&
+        !empresasComDados.has((e.nome || '').trim().toUpperCase())
+      );
+    }).map(e => e.nome);
     setProjetosNaoConsolidados(empresasSemDados);
     setProjetosConsolidados([]); // Não usado, mas mantido para compatibilidade
-  }, [data, ano, listaEmpresas]);
+  }, [data, ano, mes, listaEmpresas]);
 
   // Totais para o gráfico
   const totalConsolidado = projetosConsolidados.length;
@@ -414,6 +451,14 @@ function App() {
               </select>
             </label>
             <label>
+              <span>Mês</span>
+              <select value={mes} onChange={e => setMes(e.target.value)}>
+                {MESES.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
               <span>Indicador (matriz)</span>
               <select value={indicadorFiltro || ''} onChange={e => setIndicadorFiltro(e.target.value)}>
                 <option value="">Todos</option>
@@ -439,6 +484,22 @@ function App() {
               </select>
             </label>
             <label>
+              <span>Carteira</span>
+              <select
+                value={carteiraFiltro}
+                onChange={e => {
+                  setCarteiraFiltro(e.target.value);
+                  setEmpresaFiltro('');
+                  setEmpresaClicadaRanking(null);
+                }}
+              >
+                <option value="">Todas</option>
+                {listaCarteiras.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <label>
               <span>Empresa (opcional)</span>
               <select
                 value={empresaFiltro}
@@ -455,6 +516,7 @@ function App() {
             </label>
           </div>
           <div className="organic-cards-resumo">
+            {/* Cards originais */}
             <div className="organic-card-resumo">
               <span className="organic-card-resumo-label">Média COEFC. (ano)</span>
               <span className="organic-card-resumo-value">{cards.mediaCoefc.toFixed(2)}</span>
@@ -570,6 +632,23 @@ function App() {
                 {empresaClicadaRanking && (
                   <p className="block-hint">Tendência abaixo: evolução da empresa <strong>{empresaClicadaRanking}</strong>. Limpar: clique em outra barra ou mude o filtro.</p>
                 )}
+                {/* Card de empresas sem dados abaixo do ranking */}
+                <div className="organic-card-resumo empresas-sem-dados">
+                  <span className="empresas-sem-dados-label">
+                    <span className="icon-alert">&#9888;</span>
+                    Empresas sem dados&nbsp;<span style={{fontWeight:400}}>({MESES_LABEL[parseInt(mes, 10) - 1]}/{ano})</span>
+                  </span>
+                  <span className="empresas-sem-dados-value">{projetosNaoConsolidados.length}</span>
+                  {projetosNaoConsolidados.length === 0 ? (
+                    <span className="empresas-sem-dados-ok">Todas as empresas têm dados</span>
+                  ) : (
+                    <ul className="empresas-sem-dados-list">
+                      {projetosNaoConsolidados.map((nome, i) => (
+                        <li key={i}>{nome}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
             </div>
           </section>
