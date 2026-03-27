@@ -75,6 +75,7 @@ function App() {
   const [indicadorFiltro, setIndicadorFiltro] = useState('');
   const [ano, setAno] = useState(2026);
   const [empresaFiltro, setEmpresaFiltro] = useState('');
+  const [responsavelFiltro, setResponsavelFiltro] = useState('');
   const [listaEmpresas, setListaEmpresas] = useState([]);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,9 +101,24 @@ function App() {
       });
   }, []);
 
+  // Lista única de responsáveis
+  const listaResponsaveis = useMemo(() => {
+    const set = new Set();
+    listaEmpresas.forEach(e => {
+      if (e.responsavel && e.responsavel !== 'SEM RESPONSAVEL') set.add(e.responsavel);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listaEmpresas]);
+
+  // Empresas filtradas pelo responsável
+  const empresasFiltradas = useMemo(() => {
+    if (!responsavelFiltro) return listaEmpresas;
+    return listaEmpresas.filter(e => e.responsavel === responsavelFiltro);
+  }, [listaEmpresas, responsavelFiltro]);
+
   // 2. Efeito principal para buscar os indicadores
   useEffect(() => {
-    if (listaEmpresas.length === 0 && !error) return;
+    if (empresasFiltradas.length === 0 && !error) return;
 
     setLoading(true);
     setError(null);
@@ -111,7 +127,7 @@ function App() {
 
     const ids = empresaFiltro
       ? [empresaFiltro]
-      : listaEmpresas.map(e => e.id);
+      : empresasFiltradas.map(e => e.id);
 
     const fetchOne = (id) => {
       const url = `${BASE_URL}/indicadores?data_consolidacao_inicio=${inicio}&data_consolidacao_fim=${fim}&empresa_id=${id}`;
@@ -144,7 +160,7 @@ function App() {
       setData([]);
       setLoading(false);
     });
-  }, [ano, empresaFiltro, listaEmpresas]);
+  }, [ano, empresaFiltro, empresasFiltradas, error]);
 
   // 3. Efeito para calcular projetos consolidados e não consolidados
   // Empresas sem dados no mês selecionado
@@ -407,6 +423,22 @@ function App() {
               </select>
             </label>
             <label>
+              <span>Responsável</span>
+              <select
+                value={responsavelFiltro}
+                onChange={e => {
+                  setResponsavelFiltro(e.target.value);
+                  setEmpresaFiltro('');
+                  setEmpresaClicadaRanking(null);
+                }}
+              >
+                <option value="">Todos</option>
+                {listaResponsaveis.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </label>
+            <label>
               <span>Empresa (opcional)</span>
               <select
                 value={empresaFiltro}
@@ -416,8 +448,7 @@ function App() {
                 }}
               >
                 <option value="">Todas</option>
-                {/* Exibe nome da empresa no select */}
-                {listaEmpresas.map((empresa) => (
+                {empresasFiltradas.map((empresa) => (
                   <option key={empresa.id} value={String(empresa.id)}>{empresa.nome}</option>
                 ))}
               </select>
@@ -448,94 +479,98 @@ function App() {
         <div className="empty">Nenhum dado para o ano {ano}.</div>
       ) : (
         <>
-          <section className="block">
-            <h2 className="block-title">Ranking por % de atingimento da meta (média COEFC. / média META)</h2>
-            <p className="block-hint">Clique em uma barra para destacar a tendência mensal dessa empresa. Verde = ≥100%, Vermelho = &lt;100%.</p>
-            <ResponsiveContainer width="100%" height={Math.max(200, rankingData.length * 28)}>
-              <BarChart
-                layout="vertical"
-                data={rankingData}
-                margin={{ top: 4, right: 8, left: 40, bottom: 4 }}
-              >
-                <CartesianGrid strokeDasharray="2 2" stroke="#475569" />
-                <XAxis type="number" domain={[0, 'auto']} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis type="category" dataKey="empresa" width={56} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8 }} />
-                <Bar
-                  dataKey="pct"
-                  name="% Meta"
-                  radius={[0, 4, 4, 0]}
-                  onClick={(payload) => setEmpresaClicadaRanking(payload?.empresa ?? null)}
-                  cursor="pointer"
-                >
-                  {rankingData.map((entry, index) => (
-                    <Cell key={index} fill={entry.acima ? '#22c55e' : '#ef4444'} />
-                  ))}
-                </Bar>
-                <ReferenceLine x={100} stroke="#94a3b8" strokeDasharray="4 4" />
-              </BarChart>
-            </ResponsiveContainer>
-            {empresaClicadaRanking && (
-              <p className="block-hint">Tendência abaixo: evolução da empresa <strong>{empresaClicadaRanking}</strong>. Limpar: clique em outra barra ou mude o filtro.</p>
-            )}
-          </section>
 
-          <section className="block">
-            <div className="indicadores-grid">
-              {graficosPorIndicador.map(({ indicador, serie, mediaMeta, mediaCoefc, bateuMetaAno, tipo }) => (
-                <div key={indicador} className="chart-indicador-block">
-                  <div className="chart-indicador-header">
-                    <span className={`status-dot ${bateuMetaAno ? 'status-ok' : 'status-fail'}`} title={bateuMetaAno ? 'Meta batida (média do ano)' : 'Meta não batida'} />
-                    <h3 className="chart-indicador-title">{indicador}</h3>
-                    <span className="chart-indicador-tipo">{tipo === 'velocidade' ? 'Quanto maior, melhor' : tipo === 'resposta' ? 'Quanto menor, melhor' : 'Volume vs. % conclusão'}</span>
-                  </div>
-                  <div className="chart-indicador-body">
-                    {tipo === 'velocidade' && (
-                      <ResponsiveContainer width="100%" height={180}>
-                        <BarChart data={serie} margin={{ top: 4, right: 8, left: 8, bottom: 12 }}>
-                          <CartesianGrid strokeDasharray="2 2" stroke="#475569" />
-                          <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                          <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8 }} />
-                          <ReferenceLine y={mediaMeta} stroke="#ef4444" strokeDasharray="4 4" label="Meta" />
-                          <Bar dataKey="coefc" name="COEFC." radius={[4, 4, 0, 0]}>
-                            {serie.map((entry, i) => (
-                              <Cell key={i} fill={(entry.meta > 0 && entry.coefc >= entry.meta) ? '#22c55e' : '#ef4444'} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                    {tipo === 'resposta' && (
-                      <ResponsiveContainer width="100%" height={180}>
-                        <LineChart data={serie} margin={{ top: 4, right: 8, left: 8, bottom: 12 }}>
-                          <CartesianGrid strokeDasharray="2 2" stroke="#475569" />
-                          <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                          <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8 }} />
-                          <Line type="monotone" dataKey="coefc" name="COEFC. (real)" stroke="#38bdf8" strokeWidth={2} dot={{ r: 4 }} />
-                          <Line type="monotone" dataKey="meta" name="Meta (limite)" stroke="#ef4444" strokeDasharray="5 5" strokeWidth={1.5} dot={false} />
-                          <Legend />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    )}
-                    {tipo === 'proporcao' && (
-                      <ResponsiveContainer width="100%" height={180}>
-                        <ComposedChart data={serie} margin={{ top: 4, right: 16, left: 8, bottom: 12 }}>
-                          <CartesianGrid strokeDasharray="2 2" stroke="#475569" />
-                          <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                          <YAxis yAxisId="left" tick={{ fill: '#94a3b8', fontSize: 11 }} label={{ value: 'Volume (Total)', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
-                          <YAxis yAxisId="right" orientation="right" tick={{ fill: '#94a3b8', fontSize: 11 }} label={{ value: '% Conclusão (COEFC.)', angle: 90, position: 'insideRight', fill: '#94a3b8' }} />
-                          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8 }} />
-                          <Bar yAxisId="left" dataKey="denominador" name="Total (Denominador)" fill="#64748b" radius={[4, 4, 0, 0]} />
-                          <Line yAxisId="right" type="monotone" dataKey="coefc" name="% Conclusão" stroke="#38bdf8" strokeWidth={2} dot={{ r: 4 }} />
-                          <Legend />
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    )}
-                  </div>
+          <section className="block" style={{padding: 0}}>
+            <div className="dashboard-row-oper">
+              <div className="oper-graficos">
+                <div className="indicadores-grid-oper">
+                  {graficosPorIndicador.map(({ indicador, serie, mediaMeta, mediaCoefc, bateuMetaAno, tipo }) => (
+                    <div key={indicador} className="chart-indicador-block">
+                      <div className="chart-indicador-header">
+                        <span className={`status-dot ${bateuMetaAno ? 'status-ok' : 'status-fail'}`} title={bateuMetaAno ? 'Meta batida (média do ano)' : 'Meta não batida'} />
+                        <h3 className="chart-indicador-title">{indicador}</h3>
+                        <span className="chart-indicador-tipo">{tipo === 'velocidade' ? 'Quanto maior, melhor' : tipo === 'resposta' ? 'Quanto menor, melhor' : 'Volume vs. % conclusão'}</span>
+                      </div>
+                      <div className="chart-indicador-body">
+                        {tipo === 'velocidade' && (
+                          <ResponsiveContainer width="100%" height={220}>
+                            <BarChart data={serie} margin={{ top: 4, right: 8, left: 8, bottom: 12 }}>
+                              <CartesianGrid strokeDasharray="2 2" stroke="#475569" />
+                              <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                              <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                              <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8 }} />
+                              <ReferenceLine y={mediaMeta} stroke="#ef4444" strokeDasharray="4 4" label="Meta" />
+                              <Bar dataKey="coefc" name="COEFC." radius={[4, 4, 0, 0]}>
+                                {serie.map((entry, i) => (
+                                  <Cell key={i} fill={(entry.meta > 0 && entry.coefc >= entry.meta) ? '#22c55e' : '#ef4444'} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        )}
+                        {tipo === 'resposta' && (
+                          <ResponsiveContainer width="100%" height={220}>
+                            <LineChart data={serie} margin={{ top: 4, right: 8, left: 8, bottom: 12 }}>
+                              <CartesianGrid strokeDasharray="2 2" stroke="#475569" />
+                              <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                              <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                              <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8 }} />
+                              <Line type="monotone" dataKey="coefc" name="COEFC. (real)" stroke="#38bdf8" strokeWidth={2} dot={{ r: 4 }} />
+                              <Line type="monotone" dataKey="meta" name="Meta (limite)" stroke="#ef4444" strokeDasharray="5 5" strokeWidth={1.5} dot={false} />
+                              <Legend />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        )}
+                        {tipo === 'proporcao' && (
+                          <ResponsiveContainer width="100%" height={220}>
+                            <ComposedChart data={serie} margin={{ top: 4, right: 16, left: 8, bottom: 12 }}>
+                              <CartesianGrid strokeDasharray="2 2" stroke="#475569" />
+                              <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                              <YAxis yAxisId="left" tick={{ fill: '#94a3b8', fontSize: 11 }} label={{ value: 'Volume (Total)', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
+                              <YAxis yAxisId="right" orientation="right" tick={{ fill: '#94a3b8', fontSize: 11 }} label={{ value: '% Conclusão (COEFC.)', angle: 90, position: 'insideRight', fill: '#94a3b8' }} />
+                              <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8 }} />
+                              <Bar yAxisId="left" dataKey="denominador" name="Total (Denominador)" fill="#64748b" radius={[4, 4, 0, 0]} />
+                              <Line yAxisId="right" type="monotone" dataKey="coefc" name="% Conclusão" stroke="#38bdf8" strokeWidth={2} dot={{ r: 4 }} />
+                              <Legend />
+                            </ComposedChart>
+                          </ResponsiveContainer>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+              <div className="ranking-oper">
+                <h2 className="block-title" style={{ textTransform: 'uppercase' }}>Ranking por % de atingimento da meta</h2>
+                <p className="block-hint">Verde = ≥100%, Vermelho = &lt;100%.</p>
+                <ResponsiveContainer width="100%" height={Math.max(120, rankingData.length * 18)}>
+                  <BarChart
+                    layout="vertical"
+                    data={rankingData}
+                    margin={{ top: 4, right: 8, left: 40, bottom: 4 }}
+                  >
+                    <CartesianGrid strokeDasharray="2 2" stroke="#475569" />
+                    <XAxis type="number" domain={[0, 'auto']} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <YAxis type="category" dataKey="empresa" width={56} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8 }} />
+                    <Bar
+                      dataKey="pct"
+                      name="% Meta"
+                      radius={[0, 4, 4, 0]}
+                      onClick={(payload) => setEmpresaClicadaRanking(payload?.empresa ?? null)}
+                      cursor="pointer"
+                    >
+                      {rankingData.map((entry, index) => (
+                        <Cell key={index} fill={entry.acima ? '#22c55e' : '#ef4444'} />
+                      ))}
+                    </Bar>
+                    <ReferenceLine x={100} stroke="#94a3b8" strokeDasharray="4 4" />
+                  </BarChart>
+                </ResponsiveContainer>
+                {empresaClicadaRanking && (
+                  <p className="block-hint">Tendência abaixo: evolução da empresa <strong>{empresaClicadaRanking}</strong>. Limpar: clique em outra barra ou mude o filtro.</p>
+                )}
+              </div>
             </div>
           </section>
 
@@ -558,7 +593,7 @@ function App() {
                 <tbody>
                   {empresasNoAno.map((emp) => (
                     <tr key={emp}>
-                      <td className="heatmap-empresa">{emp}</td>
+                      <td className="heatmap-empresa" style={{ padding: '6px 16px 6px 8px', minWidth: 180, fontWeight: 500, textAlign: 'left', whiteSpace: 'nowrap' }}>{emp}</td>
                       {heatmapMeses.map((mes) => {
                         let cell = byCompanyMonth[emp]?.[mes];
                         if (indicadorFiltro) {

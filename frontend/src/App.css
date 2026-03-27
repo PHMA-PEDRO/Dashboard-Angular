@@ -1,3 +1,50 @@
+/* Layout para linha de gráficos OPER e ranking lado a lado */
+.dashboard-row-oper {
+  display: flex;
+  flex-direction: row;
+  gap: 2.5rem;
+  align-items: flex-start;
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.oper-graficos {
+  flex: 2 1 0;
+  min-width: 0;
+}
+
+.indicadores-grid-oper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.ranking-oper {
+  flex: 1 1 340px;
+  min-width: 320px;
+  max-width: 420px;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.2rem 1rem 1rem 1rem;
+  box-sizing: border-box;
+  height: fit-content;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-row-oper {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .ranking-oper {
+    max-width: 100%;
+    width: 100%;
+    margin-top: 1.5rem;
+  }
+  .indicadores-grid-oper {
+    grid-template-columns: 1fr;
+  }
+}
 .empresas-analisadas-info {
   color: #fff;
   font-size: 0.95rem;
@@ -194,32 +241,47 @@
   text-align: center;
 }
 /* --- Grid de gráficos de indicadores --- */
+
 .indicadores-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(1, 1fr);
   gap: 20px;
   margin-top: 1.5rem;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 900px) and (max-width: 1399px) {
   .indicadores-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1400px) {
+  .indicadores-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 899px) {
+  .indicadores-grid {
+    grid-template-columns: 1fr;
   }
 }
 
 
 /* Card Individual de Indicador */
+
 .chart-indicador-block {
-  flex: 1 1 calc(25% - 20px); /* Tenta manter 4 por linha */
-  min-width: 280px;
+  flex: 1 1 0;
+  min-width: 220px;
   max-width: 100%;
   background: rgba(30, 41, 59, 0.4);
   border: 1px solid #334155;
   border-radius: 12px;
-  padding: 1.25rem;
+  padding: 1rem 0.7rem 0.7rem 0.7rem;
   display: flex;
   flex-direction: column;
   transition: transform 0.2s ease;
+  min-height: 260px;
 }
 
 .chart-indicador-block:hover {
@@ -291,15 +353,17 @@
 }
 }
 
+
 .heatmap {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   background: rgba(15, 23, 42, 0.5);
 }
 
+
 .heatmap th, .heatmap td {
-  padding: 0.75rem;
+  padding: 0.35rem 0.4rem;
   text-align: center;
   border: 1px solid #1e293b;
 }

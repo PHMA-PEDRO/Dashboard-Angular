@@ -7,7 +7,7 @@ const fastify = require('fastify')({ logger: true });
 const axios = require('axios');
 
 // --- Configurações de Ambiente ---
-const API_KEY = process.env.X_API_KEY;
+const API_KEY = "da04510d-5822-4404-aebd-7adc197d3f42";
 const PORT = process.env.PORT || 3001;
 
 if (!API_KEY) {
