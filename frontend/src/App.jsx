@@ -210,13 +210,17 @@ function App() {
         if (empresaNome) empresasComDados.add(empresaNome.trim().toUpperCase());
       }
     });
-    // Empresas sem dados: verifica por id e por nome
-    const empresasSemDados = listaEmpresas.filter(e => {
-      return (
-        !empresasComDados.has(String(e.id)) &&
-        !empresasComDados.has((e.nome || '').trim().toUpperCase())
-      );
-    }).map(e => e.nome);
+    // Empresas sem dados: verifica por id e por nome, considerando filtro de carteira
+    const empresasSemDados = listaEmpresas
+      .filter(e => {
+        // Se filtro de carteira está ativo, só considera empresas daquela carteira
+        if (carteiraFiltro && e.carteira !== carteiraFiltro) return false;
+        return (
+          !empresasComDados.has(String(e.id)) &&
+          !empresasComDados.has((e.nome || '').trim().toUpperCase())
+        );
+      })
+      .map(e => e.nome);
     setProjetosNaoConsolidados(empresasSemDados);
     setProjetosConsolidados([]); // Não usado, mas mantido para compatibilidade
   }, [data, ano, mes, listaEmpresas]);
